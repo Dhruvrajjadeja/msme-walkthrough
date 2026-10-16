@@ -8,8 +8,8 @@ export const CRAFTS = [
 ];
 
 export async function loadAtlas() {
-  const geo=await (await fetch('/india.json')).json();
-  const images=await Promise.all(CRAFTS.map(c=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=`/artwork/${c.id}-bw.png`;})));
+  const geo=await (await fetch(`${import.meta.env.BASE_URL}india.json`)).json();
+  const images=await Promise.all(CRAFTS.map(c=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=`${import.meta.env.BASE_URL}artwork/${c.id}-bw.png`;})));
   const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=800;
   const state={canvas,geo,images,selected:0};drawAtlas(state);return state;
 }

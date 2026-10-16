@@ -242,7 +242,7 @@ async function load() {
   CRAFTS.forEach((craft,i)=>{const b=document.createElement('button');b.role='tab';b.textContent=craft.name;b.setAttribute('aria-selected',String(i===0));b.onclick=()=>{atlas.selected=i;drawAtlas(atlas);refreshAtlas();};$('atlas-options').append(b);});
   atlas.canvas.onclick=e=>{const r=atlas.canvas.getBoundingClientRect();if(selectAtlasAt(atlas,(e.clientX-r.left)*1600/r.width,(e.clientY-r.top)*800/r.height))refreshAtlas();};
   const loader = new GLTFLoader();
-  const gltf = await loader.loadAsync('/models/pavilion.glb',p=>{if(p.total)$('progress').value=p.loaded/p.total*100;});
+  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/pavilion.glb`,p=>{if(p.total)$('progress').value=p.loaded/p.total*100;});
   model=gltf.scene;
   model.updateMatrixWorld(true);
   model.traverse(o=>{
@@ -292,7 +292,7 @@ async function load() {
   });
   world.fromGraphNode(collisionRoot);
   reflections=createFloorReflections(model,renderer,{oak:true});
-  const response=await fetch('/models/lighting.json');
+  const response=await fetch(`${import.meta.env.BASE_URL}models/lighting.json`);
   if(!response.ok)throw new Error('Lighting file could not load.');
   const specs=await response.json();
   lightGroup=new THREE.Group();

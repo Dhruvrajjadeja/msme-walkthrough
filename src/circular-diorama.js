@@ -83,7 +83,7 @@ export async function buildCircularDiorama(model,lights) {
   group.children[0].userData.noCollision=false;
   group.children[0].userData.collisionGeometry=new THREE.CylinderGeometry(1.52,1.52,.78,64).translate(0,.59,0);
 
-  const geo=await(await fetch('/india.json')).json();
+  const geo=await(await fetch(`${import.meta.env.BASE_URL}india.json`)).json();
   const polygons=geo.type==='MultiPolygon'?geo.coordinates:[geo.coordinates];
   for(const polygon of polygons){
     const ring=polygon[0];if(ring.length<4)continue;
@@ -114,7 +114,7 @@ export async function buildCircularDiorama(model,lights) {
   details.finish();
   const loader=new THREE.TextureLoader();
   for(let i=0;i<6;i++){
-    const art=await loader.loadAsync(`/artwork/${TRADES[i]}-composed-v2.png`);art.colorSpace=THREE.SRGBColorSpace;
+    const art=await loader.loadAsync(`${import.meta.env.BASE_URL}artwork/${TRADES[i]}-composed-v2.png`);art.colorSpace=THREE.SRGBColorSpace;
     const canvas=document.createElement('canvas');canvas.width=640;canvas.height=384;const ctx=canvas.getContext('2d');
     ctx.fillStyle='#ddc7a0';ctx.fillRect(0,0,640,384);ctx.drawImage(art.image,12,12,616,296);ctx.fillStyle='#3f2c1c';ctx.font='600 24px Georgia';ctx.textAlign='center';ctx.fillText(LABELS[i],320,354);
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;

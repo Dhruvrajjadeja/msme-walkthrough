@@ -228,7 +228,7 @@ export async function refinePavilion(model,{atlasTexture,clock,onCraftSelect}={}
   model.traverse(o=>{if(o.isMesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.name.includes('blue lacquered MDF')){m.color.set('#123d70');m.roughness=.61;m.metalness=0;m.envMapIntensity=.25;}});
   const loader=new THREE.TextureLoader();
   for(const craft of crafts){
-    const texture=await loader.loadAsync(`/artwork/${craft.key}-composed-v2.png`);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;
+    const texture=await loader.loadAsync(`${import.meta.env.BASE_URL}artwork/${craft.key}-composed-v2.png`);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;
     const point=craftPoint(craft.side,craft.center);
     const windowHole={u0:.607936,u1:.847936,y0:.75,y1:1.95};
     const screenHole={u0:.065,u1:.355,y0:1.11,y1:1.95};
@@ -236,7 +236,7 @@ export async function refinePavilion(model,{atlasTexture,clock,onCraftSelect}={}
     curvedLightbox(panels,{name:`${craft.key} lightbox`,point,length:5,holes:[windowHole,screenHole],texture,reverse:craft.side<0});
     makeBooth(model,craft,lights);
     // The existing workshop image remains on the television only, never in the physical window.
-    const photo=await loader.loadAsync(`/backdrops/${craft.key}.jpg`);
+    const photo=await loader.loadAsync(`${import.meta.env.BASE_URL}backdrops/${craft.key}.jpg`);
     const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=576;
     const ctx=canvas.getContext('2d'),info=CRAFTS.find(c=>c.id===craft.key);
     const screenTexture=new THREE.CanvasTexture(canvas);screenTexture.colorSpace=THREE.SRGBColorSpace;
@@ -261,7 +261,7 @@ export async function refinePavilion(model,{atlasTexture,clock,onCraftSelect}={}
     const spill=new THREE.RectAreaLight(0xffd49a,1.7,4.5,2.8);spill.position.set(CX+craft.side*3.85,1.65,craft.center);spill.lookAt(CX,.7,craft.center);lights.add(spill);
   }
   for(const [number,key,side,center,length] of [[13,'heritage',-1,-10.1382,4.0215],[14,'journey',0,-12.9,7.6937],[15,'future',1,-10.1382,4.0215]]){
-    const texture=await loader.loadAsync(`/artwork/transition-${key}-bw.png`);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;
+    const texture=await loader.loadAsync(`${import.meta.env.BASE_URL}artwork/transition-${key}-bw.png`);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;
     const point=side?craftPoint(side,center,length,4.5):(u,y,d)=>{const x=CX+(u-.5)*length;return [x,y+.1,-13.19+(x-CX)**2*.059-d];};
     curvedLightbox(panels,{name:`${key} transition lightbox`,point,length,texture,reverse:side<0});
     const spill=new THREE.RectAreaLight(0xffd49a,1.6,side?3.7:6.6,2.8);spill.position.set(side?CX+side*3.9:CX,1.65,side?center:-12.05);spill.lookAt(CX,.8,-9);lights.add(spill);

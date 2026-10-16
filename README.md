@@ -1,6 +1,8 @@
 # MSME Walkthrough
 
-Private exhibition walkthrough built with Three.js and Vite. Includes the pavilion model, six illuminated craft panels and detailed workshop windows, interactive craft screens, a double-sided atlas, an animated LED tree, and a circular India craft diorama.
+Exhibition walkthrough built with Three.js and Vite. Includes the pavilion model, six illuminated craft panels and detailed workshop windows, interactive craft screens, a double-sided atlas, an animated LED tree, and a circular India craft diorama.
+
+Live walkthrough: https://dhruvrajjadeja.github.io/msme-walkthrough/
 
 ## Run Locally
 
@@ -20,7 +22,7 @@ npm run build
 npm run preview -- --port 3000 --strictPort
 ```
 
-The `dist` directory can be deployed to a static host. Assets currently use root-relative paths, so deploy at the site's root, not a repository subdirectory. A private repository does not automatically make a deployed website private.
+The `dist` directory can be deployed to a static host. For a subdirectory deployment, pass its base path to Vite: `npm run build -- --base=/msme-walkthrough/`. The GitHub Actions workflow builds and publishes this automatically on pushes to `main`.
 
 ## Controls
 
@@ -43,7 +45,7 @@ The Blender working files, user reference PDFs, local screenshots, logs, credent
 
 ## Assets And Scope
 
-Material attribution is retained in `public/materials/ATTRIBUTION.md`. Generated mural prompts are retained under `public/artwork`. Project-supplied models and illustrations are included for this private project; no public redistribution license is asserted.
+Material attribution is retained in `public/materials/ATTRIBUTION.md`. Generated mural prompts are retained under `public/artwork`. Project-supplied models and illustrations are included for the walkthrough; no general redistribution license is asserted.
 
 This is a real-time architectural visualization, not a general-purpose physics simulation. Walking uses Three.js capsule/Octree collision. The craft screens contain animated process indicators and interactive information, not documentary video footage.
 

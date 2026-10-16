@@ -3,7 +3,7 @@ import { CraftBuilder, finishes as F, vessel, basket, shoe } from './craft-objec
 
 export async function prepareCraftMaterials() {
   const loader = new THREE.TextureLoader();
-  const maps = await Promise.all(['diff','nor_gl','rough'].map(kind => loader.loadAsync(`/materials/wood_floor_${kind}_1k.jpg`)));
+  const maps = await Promise.all(['diff','nor_gl','rough'].map(kind => loader.loadAsync(`${import.meta.env.BASE_URL}materials/wood_floor_${kind}_1k.jpg`)));
   maps.forEach(t => { t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(.115,.8);t.offset.set(.04,.08);t.anisotropy=8; });
   maps[0].colorSpace=THREE.SRGBColorSpace;
   for (const key of ['timber','endgrain']) {

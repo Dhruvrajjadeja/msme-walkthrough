@@ -82,7 +82,7 @@ export async function applyFloorMaterials(model, renderer) {
   for (const [kind, surface] of Object.entries(SURFACES)) {
     const textures = {};
     for (const [slot, suffix] of Object.entries({ map: 'diff', normalMap: 'nor_gl', roughnessMap: 'rough' })) {
-      const path = `/materials/${surface.asset}_${suffix}_1k.jpg`;
+      const path = `${import.meta.env.BASE_URL}materials/${surface.asset}_${suffix}_1k.jpg`;
       try {
         const texture = await loader.loadAsync(path);
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
