@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#17191b" />
+  <title>MSME Walkthrough</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23863e43'/%3E%3Cpath d='M7 24V9l9 6 9-6v15M16 15v9' fill='none' stroke='white' stroke-width='2.5'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <main id="app">
+    <div id="viewport" aria-label="Interactive 3D pavilion"></div>
+    <header class="toolbar">
+      <div class="identity"><h1>MSME Walkthrough</h1></div>
+      <nav class="modes" aria-label="View mode">
+        <button data-mode="orbit" aria-pressed="true" title="Orbit view"><i data-lucide="orbit"></i><span>Orbit</span></button>
+        <button data-mode="walk" aria-pressed="false" title="Walk view: WASD or arrow keys; Escape releases the mouse"><i data-lucide="footprints"></i><span>Walk</span></button>
+        <button data-mode="plan" aria-pressed="false" title="Top view"><i data-lucide="scan"></i><span>Plan</span></button>
+      </nav>
+      <div class="actions">
+        <button id="atlas-open" class="icon-button" aria-label="Craft atlas" title="Craft atlas"><i data-lucide="map"></i></button>
+        <button id="reset" class="icon-button" aria-label="Reset view" title="Reset view"><i data-lucide="rotate-ccw"></i></button>
+        <button id="fullscreen" class="icon-button" aria-label="Fullscreen" title="Fullscreen"><i data-lucide="maximize"></i></button>
+      </div>
+    </header>
+    <div id="loading" class="loading" role="status"><div class="loader"></div><span id="load-text">Opening pavilion</span><progress id="progress" max="100" value="0"></progress></div>
+    <div id="error" class="error" hidden><h2>Couldn’t open the pavilion</h2><p id="error-text"></p><button id="retry">Try again</button></div>
+    <button id="resume" hidden><i data-lucide="footprints"></i><span>Continue walking</span></button>
+    <div id="crosshair" aria-hidden="true" hidden></div>
+    <div class="bottom-bar"><span id="view-label">Pavilion interior</span><select id="viewpoint" aria-label="Viewpoint"><option value="entry">Interior</option><option value="front">Entrance</option><option value="back">Entrance reverse</option><option value="craft">Craft detail</option><option value="map">Double-sided atlas</option><option value="end">Circular diorama</option></select><span class="revision">Ambient study</span></div>
+    <div id="section-control" hidden><label for="section-height">Section height <output id="section-value">1.30 m</output></label><input id="section-height" type="range" min="0.3" max="3.8" step="0.05" value="1.3"></div>
+    <dialog id="atlas-dialog" aria-label="India craft atlas"><div class="atlas-head"><span>CRAFT ATLAS</span><button id="atlas-close" class="icon-button" aria-label="Close craft atlas" title="Close"><i data-lucide="x"></i></button></div><div id="atlas-surface"></div><div id="atlas-options" role="tablist" aria-label="Craft"></div><p class="atlas-note">Illustrative craft connections · Map: Natural Earth</p></dialog>
+    <div id="touch-controls" hidden aria-label="Walking controls">
+      <button data-move="forward" class="forward" aria-label="Move forward"><i data-lucide="arrow-up"></i></button>
+      <button data-move="left" class="left" aria-label="Move left"><i data-lucide="arrow-left"></i></button>
+      <button data-move="back" class="back" aria-label="Move backward"><i data-lucide="arrow-down"></i></button>
+      <button data-move="right" class="right" aria-label="Move right"><i data-lucide="arrow-right"></i></button>
+    </div>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
