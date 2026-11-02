@@ -3,14 +3,14 @@ export function setupAmbientAudio(button) {
   const audio = new Audio();
   audio.preload = 'none';
   audio.loop = true;
-  audio.volume = .28;
+  audio.volume = .16;
   let enabled = false;
   let revision = 0;
   const update = (message) => {
     button.setAttribute('aria-pressed', String(enabled));
     button.title = button.ariaLabel = message || (enabled
-      ? 'Pause music — Vadodora by Kevin MacLeod'
-      : 'Play music — Vadodora by Kevin MacLeod');
+      ? 'Pause calm music — Meditation Impromptu 01 by Kevin MacLeod'
+      : 'Play calm music — Meditation Impromptu 01 by Kevin MacLeod');
   };
   async function reconcile() {
     const current = ++revision;
@@ -25,7 +25,7 @@ export function setupAmbientAudio(button) {
     }
   }
   button.onclick = () => {
-    if (!audio.src) audio.src = import.meta.env.BASE_URL + 'audio/vadodora.mp3';
+    if (!audio.src) audio.src = import.meta.env.BASE_URL + 'audio/meditation.mp3';
     enabled = !enabled;
     update();
     void reconcile();
