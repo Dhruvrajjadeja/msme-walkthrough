@@ -22,6 +22,8 @@ import { createIcons, Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, Arr
 createIcons({ icons: { Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map, X, Music } });
 const $ = (id) => document.getElementById(id);
 setupAmbientAudio($('ambient-audio'));
+$('fullscreen').hidden=!document.fullscreenEnabled;
+new ResizeObserver(([entry])=>document.documentElement.style.setProperty('--toolbar-height',`${entry.target.getBoundingClientRect().height}px`)).observe(document.querySelector('.toolbar'));
 const touch = matchMedia('(pointer: coarse)').matches;
 let renderer;
 try {
@@ -139,7 +141,7 @@ function isPavilion(o) { return /^(01|09|10|11)/.test(category(o)) || o.name.sta
 function setMode(next) {
   if (!ready) return;
   if (pointer.isLocked) pointer.unlock();
-  keys.clear(); dragging = false; mode = next;
+  keys.clear(); dragging = false; lookPointer=null; mode = next;
   orbit.enabled = next === 'orbit'; planOrbit.enabled = next === 'plan';
   activeCamera = next === 'plan' ? planCamera : camera;
   model.traverse(o => { if(o.isMesh) {o.visible = next !== 'plan' || isPavilion(o);for(const m of Array.isArray(o.material)?o.material:[o.material])m.clippingPlanes=next==='plan'?[sectionPlane]:[];} });
@@ -175,7 +177,7 @@ $('viewpoint').onchange=e=>{
   const [p,t]=views[e.target.value];camera.position.fromArray(p);orbit.target.fromArray(t);orbit.update();
   $('view-label').textContent=e.target.selectedOptions[0].textContent;
 };
-function openAtlas(){if(!atlas)return;if(pointer.isLocked)pointer.unlock();keys.clear();$('atlas-dialog').showModal();$('atlas-close').focus();}
+function openAtlas(){if(!atlas)return;if(pointer.isLocked)pointer.unlock();keys.clear();dragging=false;lookPointer=null;$('atlas-dialog').showModal();$('atlas-close').focus();}
 $('atlas-open').onclick=openAtlas;$('atlas-close').onclick=()=>$('atlas-dialog').close();
 $('atlas-dialog').addEventListener('close',()=>renderer.domElement.focus());
 document.addEventListener('pointerlockerror',()=>{ $('resume').hidden=true; });
@@ -187,13 +189,14 @@ $('fullscreen').onclick = async () => {
 document.addEventListener('fullscreenchange',()=>{ $('fullscreen').setAttribute('aria-label',document.fullscreenElement?'Exit fullscreen':'Fullscreen'); });
 
 function resize() {
-  const w=innerWidth,h=innerHeight;
+  const bounds=$('viewport').getBoundingClientRect(),w=Math.max(1,bounds.width),h=Math.max(1,bounds.height);
   renderer.setSize(w,h); camera.aspect=w/h;camera.updateProjectionMatrix();
   pipeline.resize(w,h);
   const halfH=Math.max(18,10.5/(w/h));
   planCamera.left=-halfH*w/h;planCamera.right=halfH*w/h;planCamera.top=halfH;planCamera.bottom=-halfH;planCamera.updateProjectionMatrix();
 }
 addEventListener('resize',resize);
+window.visualViewport?.addEventListener('resize',resize);
 addEventListener('keydown',e=>{
   if(e.code==='Escape'&&pointer.isLocked){pointer.unlock();return;}
   if($('atlas-dialog').open)return;
@@ -202,23 +205,25 @@ addEventListener('keydown',e=>{
   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) { keys.add(e.code);e.preventDefault(); }
 });
 addEventListener('keyup',e=>keys.delete(e.code));
-addEventListener('blur',()=>{keys.clear();dragging=false;});
+addEventListener('blur',()=>{keys.clear();dragging=false;lookPointer=null;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)keys.clear();});
 const moveKeys={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD'};
 document.querySelectorAll('[data-move]').forEach(b=>{
   b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(moveKeys[b.dataset.move]);};
   b.onpointerup=b.onpointercancel=b.onlostpointercapture=()=>keys.delete(moveKeys[b.dataset.move]);
 });
+let lookPointer=null;
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(mode!=='walk'||pointer.isLocked)return;
+  if(mode!=='walk'||pointer.isLocked||lookPointer!==null)return;
+  lookPointer=e.pointerId;
   dragging=true;dragX=e.clientX;dragY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);
 });
 renderer.domElement.addEventListener('pointermove',e=>{
-  if(!dragging||mode!=='walk'||pointer.isLocked)return;
+  if(!dragging||mode!=='walk'||pointer.isLocked||e.pointerId!==lookPointer)return;
   euler.setFromQuaternion(camera.quaternion);euler.y-=(e.clientX-dragX)*.004;euler.x=THREE.MathUtils.clamp(euler.x-(e.clientY-dragY)*.004,-1.25,1.25);camera.quaternion.setFromEuler(euler);dragX=e.clientX;dragY=e.clientY;
 });
-renderer.domElement.addEventListener('pointerup',()=>dragging=false);
-renderer.domElement.addEventListener('pointercancel',()=>dragging=false);
+for(const event of ['pointerup','pointercancel','lostpointercapture'])renderer.domElement.addEventListener(event,e=>{if(e.pointerId===lookPointer){dragging=false;lookPointer=null;}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){dragging=false;lookPointer=null;}});
 
 function updateWalk(dt) {
   const moveZ=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
@@ -245,9 +250,10 @@ async function load() {
   await loadingStage('Loading craft atlas', 3);
   atlas=await loadAtlas();atlasTexture=new THREE.CanvasTexture(atlas.canvas);atlasTexture.colorSpace=THREE.SRGBColorSpace;atlasTexture.flipY=false;
   $('atlas-surface').append(atlas.canvas);
-  function refreshAtlas(){atlasTexture.needsUpdate=true;[...$('atlas-options').children].forEach((b,i)=>b.setAttribute('aria-selected',String(i===atlas.selected)));}
+  function refreshAtlas(){atlasTexture.needsUpdate=true;[...$('atlas-options').children].forEach((b,i)=>b.setAttribute('aria-selected',String(i===atlas.selected)));const craft=CRAFTS[atlas.selected];$('atlas-craft-name').textContent=craft.name;$('atlas-craft-description').textContent=craft.description;}
   CRAFTS.forEach((craft,i)=>{const b=document.createElement('button');b.role='tab';b.textContent=craft.name;b.setAttribute('aria-selected',String(i===0));b.onclick=()=>{atlas.selected=i;drawAtlas(atlas);refreshAtlas();};$('atlas-options').append(b);});
   atlas.canvas.onclick=e=>{const r=atlas.canvas.getBoundingClientRect();if(selectAtlasAt(atlas,(e.clientX-r.left)*1600/r.width,(e.clientY-r.top)*800/r.height))refreshAtlas();};
+  refreshAtlas();
   const loader = new GLTFLoader();
   await loadingStage('Downloading pavilion', 10);
   const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/pavilion.glb`,p=>{if(p.total)$('progress').value=10+p.loaded/p.total*20;});
@@ -375,10 +381,14 @@ let contextLost=false;
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();contextLost=true;renderer.setAnimationLoop(null);$('loading').hidden=false;$('load-text').textContent='Restoring the 3D view';});
 renderer.domElement.addEventListener('webglcontextrestored',()=>{if(contextLost){contextLost=false;renderer.shadowMap.needsUpdate=true;$('loading').hidden=!ready;renderer.setAnimationLoop(animate);}});
 const interactionRay=new THREE.Raycaster();let downPoint;
-renderer.domElement.addEventListener('pointerdown',e=>downPoint=[e.clientX,e.clientY]);
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.isPrimary)downPoint={x:e.clientX,y:e.clientY,id:e.pointerId,moved:false};});
+renderer.domElement.addEventListener('pointermove',e=>{if(downPoint?.id===e.pointerId&&Math.hypot(e.clientX-downPoint.x,e.clientY-downPoint.y)>6)downPoint.moved=true;});
+renderer.domElement.addEventListener('pointercancel',()=>downPoint=null);
 renderer.domElement.addEventListener('pointerup',e=>{
-  if(!ready||!downPoint||Math.hypot(e.clientX-downPoint[0],e.clientY-downPoint[1])>6)return;
-  const p=pointer.isLocked?new THREE.Vector2():new THREE.Vector2(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);
+  const start=downPoint;downPoint=null;
+  if(!ready||!start||start.id!==e.pointerId||start.moved||Math.hypot(e.clientX-start.x,e.clientY-start.y)>6)return;
+  const bounds=renderer.domElement.getBoundingClientRect();
+  const p=pointer.isLocked?new THREE.Vector2():new THREE.Vector2((e.clientX-bounds.left)/bounds.width*2-1,-(e.clientY-bounds.top)/bounds.height*2+1);
   interactionRay.setFromCamera(p,activeCamera);const hit=interactionRay.intersectObject(model,true).find(h=>h.object.visible);
   if(hit?.object.userData.atlas)openAtlas();
   else hit?.object.userData.activate?.();
