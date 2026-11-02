@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadingStage, yieldToBrowser } from './loading.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { CraftBuilder, finishes, vessel, basket, shoe } from './craft-objects.js';
 import { prepareCraftMaterials, populateDetailedCraft, workshopPendant } from './detailed-crafts.js';
@@ -228,13 +229,16 @@ export async function refinePavilion(model,{atlasTexture,clock,onCraftSelect}={}
   model.traverse(o=>{if(o.isMesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.name.includes('blue lacquered MDF')){m.color.set('#123d70');m.roughness=.61;m.metalness=0;m.envMapIntensity=.25;}});
   const loader=new THREE.TextureLoader();
   for(const craft of crafts){
+    await loadingStage(`Preparing ${craft.key} exhibit`,38+crafts.indexOf(craft)*4);
     const texture=await loader.loadAsync(`${import.meta.env.BASE_URL}artwork/${craft.key}-composed-v2.png`);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;
     const point=craftPoint(craft.side,craft.center);
     const windowHole={u0:.607936,u1:.847936,y0:.75,y1:1.95};
     const screenHole={u0:.065,u1:.355,y0:1.11,y1:1.95};
     // The new murals are composed around these exact apertures, with undistorted UVs.
     curvedLightbox(panels,{name:`${craft.key} lightbox`,point,length:5,holes:[windowHole,screenHole],texture,reverse:craft.side<0});
+    await yieldToBrowser();
     makeBooth(model,craft,lights);
+    await yieldToBrowser();
     // The existing workshop image remains on the television only, never in the physical window.
     const photo=await loader.loadAsync(`${import.meta.env.BASE_URL}backdrops/${craft.key}.jpg`);
     const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=576;
@@ -266,8 +270,11 @@ export async function refinePavilion(model,{atlasTexture,clock,onCraftSelect}={}
     curvedLightbox(panels,{name:`${key} transition lightbox`,point,length,texture,reverse:side<0});
     const spill=new THREE.RectAreaLight(0xffd49a,1.6,side?3.7:6.6,2.8);spill.position.set(side?CX+side*3.9:CX,1.65,side?center:-12.05);spill.lookAt(CX,.8,-9);lights.add(spill);
   }
+  await loadingStage('Preparing LED tree',64);
   const tree=ledTree(model,lights,clock);
+  await yieldToBrowser();
   const installation=interactiveInstallation(model,atlasTexture);
+  await loadingStage('Preparing circular diorama',68);
   await buildCircularDiorama(model,lights);
   model.updateMatrixWorld(true);
   return {lights,tree,installation,update:time=>screenUpdates.forEach(draw=>draw(time)),report:{removed,craftLightboxes:6,colourArtworks:6,apertureAwareArt:true,artworkWarp:false,transitionLightboxes:3,enclosedWorkshops:6,workshopShadows:6,interactiveCraftScreens:6,mapScreens:2,curvedCounter:true,dioramaMiniatures:6,dioramaRimPlates:24,treeStrips:44,treeHeight:4.628,treeCenter:[CX,8.1],loopSeconds:10}};

@@ -65,6 +65,7 @@ export class CraftBuilder {
       this.group.add(mesh);
       geometries.forEach(g => g.dispose());
     }
+    this.parts.clear();
   }
 }
 

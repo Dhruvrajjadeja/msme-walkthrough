@@ -1,9 +1,13 @@
 import './style.css';
+import { setupAmbientAudio } from './ambient-audio.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { Octree } from 'three/addons/math/Octree.js';
+import { buildCollision } from './collision.js';
+import { loadingStage, yieldToBrowser } from './loading.js';
+import { createLightBudget } from './light-budget.js';
 import { Capsule } from 'three/addons/math/Capsule.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
@@ -13,16 +17,17 @@ import { applyFloorMaterials } from './floor-materials.js';
 import { createFloorReflections } from './floor-reflections.js';
 import { createRenderPipeline } from './render-quality.js';
 import { refinePavilion } from './pavilion-refinement.js';
-import { createIcons, Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map, X } from 'lucide';
+import { createIcons, Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map, X, Music } from 'lucide';
 
-createIcons({ icons: { Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map, X } });
+createIcons({ icons: { Orbit, Footprints, Scan, RotateCcw, Maximize, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map, X, Music } });
 const $ = (id) => document.getElementById(id);
+setupAmbientAudio($('ambient-audio'));
 const touch = matchMedia('(pointer: coarse)').matches;
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 } catch (error) { showError('This browser could not start 3D rendering. Try opening the link in Chrome or Edge.'); throw error; }
-renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = .72;
@@ -64,7 +69,8 @@ fill.position.set(4,8,3);
 scene.add(fill);
 const pipeline = createRenderPipeline(renderer, scene, camera, { mobile: touch });
 let reflections, entranceLighting, displayLighting;
-const world = new Octree();
+let updateLightBudget=()=>{};
+let world = new Octree();
 const collider = new Capsule(new THREE.Vector3(9,0.55,19), new THREE.Vector3(9,1.4,19), 0.3);
 const forward = new THREE.Vector3(), right = new THREE.Vector3(), delta = new THREE.Vector3();
 const keys = new Set();
@@ -236,13 +242,15 @@ function updateWalk(dt) {
 }
 
 async function load() {
+  await loadingStage('Loading craft atlas', 3);
   atlas=await loadAtlas();atlasTexture=new THREE.CanvasTexture(atlas.canvas);atlasTexture.colorSpace=THREE.SRGBColorSpace;atlasTexture.flipY=false;
   $('atlas-surface').append(atlas.canvas);
   function refreshAtlas(){atlasTexture.needsUpdate=true;[...$('atlas-options').children].forEach((b,i)=>b.setAttribute('aria-selected',String(i===atlas.selected)));}
   CRAFTS.forEach((craft,i)=>{const b=document.createElement('button');b.role='tab';b.textContent=craft.name;b.setAttribute('aria-selected',String(i===0));b.onclick=()=>{atlas.selected=i;drawAtlas(atlas);refreshAtlas();};$('atlas-options').append(b);});
   atlas.canvas.onclick=e=>{const r=atlas.canvas.getBoundingClientRect();if(selectAtlasAt(atlas,(e.clientX-r.left)*1600/r.width,(e.clientY-r.top)*800/r.height))refreshAtlas();};
   const loader = new GLTFLoader();
-  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/pavilion.glb`,p=>{if(p.total)$('progress').value=p.loaded/p.total*100;});
+  await loadingStage('Downloading pavilion', 10);
+  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/pavilion.glb`,p=>{if(p.total)$('progress').value=10+p.loaded/p.total*20;});
   model=gltf.scene;
   model.updateMatrixWorld(true);
   model.traverse(o=>{
@@ -276,10 +284,13 @@ async function load() {
       }
     });
   });
+  await loadingStage('Preparing entrance', 32);
   const entrance=rebuildEntrance(model,{mobile:touch});entranceLighting=entrance.lightGroup;
+  await loadingStage('Preparing craft exhibits', 38);
   const refinement=await refinePavilion(model,{atlasTexture,clock:treeClock,onCraftSelect:key=>{
     atlas.selected=CRAFTS.findIndex(c=>c.id===key);drawAtlas(atlas);refreshAtlas();openAtlas();
   }});displayLighting=refinement.lights;scene.add(displayLighting);updateExhibits=refinement.update;
+  await loadingStage('Preparing floor materials', 72);
   const floorStatus=await applyFloorMaterials(model,renderer);
   model.traverse(o=>{if(o.isMesh&&(isPavilion(o)||category(o).startsWith('02'))&&!o.userData.noCollision)floorMeshes.push(o);});
   scene.add(model);model.updateMatrixWorld(true);
@@ -290,7 +301,10 @@ async function load() {
     if(cat.startsWith('03')||cat.startsWith('04')||cat.startsWith('06')||cat.startsWith('11'))return;
     const mesh=new THREE.Mesh(o.userData.collisionGeometry||o.geometry);mesh.matrix.copy(o.matrixWorld);mesh.matrixAutoUpdate=false;collisionRoot.add(mesh);
   });
-  world.fromGraphNode(collisionRoot);
+  await loadingStage('Preparing walking paths', 78);
+  world=await buildCollision(collisionRoot);
+  collisionRoot.clear();
+  await loadingStage('Preparing reflections and lighting', 86);
   reflections=createFloorReflections(model,renderer,{oak:true});
   const response=await fetch(`${import.meta.env.BASE_URL}models/lighting.json`);
   if(!response.ok)throw new Error('Lighting file could not load.');
@@ -310,7 +324,24 @@ async function load() {
     lamp.shadow.mapSize.set(1024,1024);lamp.shadow.bias=-.0004;lamp.shadow.normalBias=.025;
     lightGroup.add(lamp,lamp.target);
   });
-  scene.add(lightGroup);ready=true;
+  scene.add(lightGroup);
+  reset();updateLightBudget=createLightBudget(scene,renderer,touch);updateLightBudget(camera);
+  await loadingStage('Uploading exhibit textures', 89);
+  const textures=new Set();
+  scene.traverse(o=>{if(o.isMesh)for(const material of Array.isArray(o.material)?o.material:[o.material])for(const value of Object.values(material))if(value?.isTexture&&!value.isRenderTargetTexture)textures.add(value);});
+  for(const texture of textures){
+    const image=texture.image,limit=touch?1024:2048;
+    if(image?.width&&image?.height&&!texture.isCanvasTexture&&!texture.isDataTexture&&!texture.isCubeTexture&&Math.max(image.width,image.height)>limit){
+      const canvas=document.createElement('canvas'),scale=limit/Math.max(image.width,image.height);
+      canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
+      canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);texture.image=canvas;texture.needsUpdate=true;
+    }
+    renderer.initTexture(texture);await yieldToBrowser();
+  }
+  await loadingStage('Preparing graphics', 92);
+  reset(); resize();
+  await yieldToBrowser();
+  ready=true;
   modeButtons.forEach(b=>b.disabled=false);reset();resize();
   $('viewpoint').value='front';$('view-label').textContent='Pavilion entrance';
   const initialView=new URLSearchParams(location.search).get('view');
@@ -326,9 +357,9 @@ async function load() {
   if(import.meta.env.DEV)window.pavilion.setViewPose=(position,target)=>{if(mode!=='orbit')setMode('orbit');camera.position.fromArray(position);orbit.target.fromArray(target);orbit.update();};
   if(import.meta.env.DEV)window.pavilion.setAnimationTime=value=>{animationTimeOverride=value;};
 }
-load().catch(e=>{console.error(e);showError('The model could not be loaded. Check the local server and try again.');});
+load().catch(e=>{console.error(e);showError('The pavilion could not finish loading. Check your connection, then try again.');});
 let last=performance.now();
-renderer.setAnimationLoop(now=>{
+function animate(now){
   const dt=Math.min((now-last)/1000,.05);last=now;
   if(!ready||document.hidden)return;
   treeClock.value=animationTimeOverride??now*.001;
@@ -336,9 +367,13 @@ renderer.setAnimationLoop(now=>{
   if(mode==='orbit') {
     orbit.update();camera.position.x=THREE.MathUtils.clamp(camera.position.x,-14.5,14.5);camera.position.y=THREE.MathUtils.clamp(camera.position.y,.5,5.3);camera.position.z=THREE.MathUtils.clamp(camera.position.z,-32.5,32.5);
   } else if(mode==='plan')planOrbit.update();else for(let i=0;i<3;i++)updateWalk(dt/3);
+  if(mode!=='plan')updateLightBudget(activeCamera,now);
   pipeline.render(activeCamera,{plan:mode==='plan'});
-});
-renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();showError('The 3D view was interrupted. Reload to reopen the pavilion.');});
+}
+renderer.setAnimationLoop(animate);
+let contextLost=false;
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();contextLost=true;renderer.setAnimationLoop(null);$('loading').hidden=false;$('load-text').textContent='Restoring the 3D view';});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{if(contextLost){contextLost=false;renderer.shadowMap.needsUpdate=true;$('loading').hidden=!ready;renderer.setAnimationLoop(animate);}});
 const interactionRay=new THREE.Raycaster();let downPoint;
 renderer.domElement.addEventListener('pointerdown',e=>downPoint=[e.clientX,e.clientY]);
 renderer.domElement.addEventListener('pointerup',e=>{

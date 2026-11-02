@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { yieldToBrowser } from './loading.js';
 import { CraftBuilder, finishes as F, vessel, basket, shoe } from './craft-objects.js';
 import { anvil, bench, sewingMachine, spokedWheel } from './detailed-crafts.js';
 
@@ -93,6 +94,7 @@ export async function buildCircularDiorama(model,lights) {
   }
   for(let i=0;i<6;i++){
     const a=i*Math.PI/3+.12;miniature(group,TRADES[i],Math.sin(a)*.91,Math.cos(a)*.91,a);
+    await yieldToBrowser();
   }
   // Central spinning wheels, handloom and figures enrich the geographic relief.
   const center=new THREE.Group();center.position.y=1.044;center.scale.setScalar(.19);group.add(center);const c=new CraftBuilder(center);
@@ -110,6 +112,7 @@ export async function buildCircularDiorama(model,lights) {
   for(let i=0;i<12;i++){
     const a=i*Math.PI/6+.35,x=Math.sin(a)*1.10,z=Math.cos(a)*1.10;
     if(i%2)vessel(details,x,.98,z,.042,.055+(i%3)*.013,i%4);else basket(details,x,.98,z,.045,.045,false);
+    await yieldToBrowser();
   }
   details.finish();
   const loader=new THREE.TextureLoader();
